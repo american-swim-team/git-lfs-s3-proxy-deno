@@ -1,169 +1,173 @@
-# Git LFS S3 Proxy
+# git-lfs-s3-proxy-deno
 
-This [Cloudflare Pages](https://pages.cloudflare.com/) site acts as a [Git LFS](https://git-lfs.com/) server backed by any S3-compatible service.
+A minimal Git LFS transfer adapter that signs secure, pre-signed URLs for uploading and downloading Git LFS objects to any S3-compatible storage (e.g. AWS S3, Linode Object Storage, DigitalOcean Spaces, MinIO, etc.).
 
-- By replacing GitHub's default LFS server with an [R2](https://developers.cloudflare.com/r2) bucket behind this proxy, LFS uploads and downloads become free instead of $0.0875/GiB exceeding 10 GiB/month across all repos [and forks](https://docs.github.com/en/repositories/working-with-files/managing-large-files/collaboration-with-git-large-file-storage#pushing-large-files-to-forks). Storage exceeding the free tier costs $0.015/GB-month on R2 instead of $0.07/GB-month on GitHub.
-- On most services, latency is low enough to [serve entire websites](https://github.com/milkey-mouse/git-lfs-client-worker) directly from your LFS server. This also allows you to transparently overcome the [25 MiB](https://developers.cloudflare.com/pages/platform/limits/#file-size) Cloudflare Pages file size limit by automatically adding any files over this size to LFS.
+Built with [Deno](https://deno.land/) for zero-dependency, container-friendly, high-performance deployment.
 
-# Usage
+---
 
-### Create a bucket
+## 🚀 Features
 
-First, create a bucket on an S3-compatible object store to host your LFS assets. In roughly increasing order of cost (as of 2023-08-05), your options include:
+- 🔐 Supports Git LFS basic transfer adapter
+- 🏷️ Pre-signs `PUT` (upload) and `GET` (download) URLs to S3
+- 🧱 S3-compatible: works with Linode, AWS, DO Spaces, MinIO
+- 🦕 Fully TypeScript and Deno-native
+- 🧪 Built-in test suite (unit + optional integration tests)
+- 🐳 Easy to containerize for Nomad, Docker, K8s, etc.
 
-- [Cloudflare R2](https://developers.cloudflare.com/r2/buckets/create-buckets/)
-- [Backblaze B2](https://help.backblaze.com/hc/en-us/articles/1260803542610-Creating-a-B2-Bucket-using-the-Web-UI)
-- [Wasabi](https://docs.wasabi.com/docs/creating-a-bucket)
-- [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-bucket.html) (ideally create an [IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) first)
-- [Google Cloud Storage](https://cloud.google.com/storage/docs/creating-buckets) (ideally create a [service account](https://cloud.google.com/iam/docs/service-accounts-create) first)
-- [Linode Object Storage](https://www.linode.com/docs/products/storage/object-storage/guides/manage-buckets/)
-- [DigitalOcean Spaces](https://docs.digitalocean.com/products/spaces/how-to/create/)
+---
 
-We recommend R2 for its generous free tier: your LFS repos can store up to 10 GB and use unlimited bandwidth to write up to 1 million objects and read up to 10 million objects. If serving assets via [LFS Client Worker](https://github.com/milkey-mouse/git-lfs-client-worker), R2 has the additional benefit of being in the same datacenters as the worker.
+## 🔧 How It Works
 
-### Create an access key
+Git LFS sends a `batch` request like:
 
-Now create an access key with read/write permission to your bucket:
+```
+POST /my-bucket.region.s3-provider.com/info/lfs/objects/batch
+```
 
-- For Cloudflare R2, [obtain an **Access Key ID** and **Secret Access Key**](https://developers.cloudflare.com/r2/api/s3/tokens/).
-- For Backblaze B2, [obtain an **Application Key ID** and **Application Key**](https://www.backblaze.com/docs/cloud-storage-create-and-manage-app-keys).
-- For Wasabi, [obtain an **Access Key** and **Secret Key**](https://knowledgebase.wasabi.com/hc/en-us/articles/360019677192-Creating-a-Wasabi-API-Access-Key-Set).
-- For Amazon S3, [obtain an **Access Key ID** and **Secret Access Key**](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey).
-- For Google Cloud Storage, [obtain an **HMAC Key Access ID** and **HMAC Key Secret**](https://cloud.google.com/storage/docs/authentication/managing-hmackeys).
-- For Linode Object Storage, [obtain an **Access Key** and **Secret Key**](https://www.linode.com/docs/products/storage/object-storage/get-started/#generate-an-access-key).
-- For DigitalOcean Spaces, [obtain an **Access Key** and **Secret Key**](https://docs.digitalocean.com/products/spaces/how-to/manage-access/#access-keys).
+This proxy:
+1. Parses your `Basic` auth as S3 credentials
+2. Extracts the bucket + endpoint from the URL
+3. Responds with pre-signed URLs Git LFS can use directly
 
-You should now have (to use S3's terminology) two values:
+---
 
-- An access key ID (example: `AKIAIOSFODNN7EXAMPLE`)
-- A secret access key (example: `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`)
+## 📦 Getting Started
 
-If either value contains non-alphanumeric characters, you may need to [urlencode](https://www.urlencoder.org/) each value.
+### ⚙️ Requirements
 
-### Optional: Deploy your own instance of the proxy
+- Deno 2.2+
+- A Git LFS client configured to use this proxy
+- An S3-compatible bucket
 
-A canonical instance of the proxy runs at `git-lfs-s3-proxy.pages.dev`, which can be used by any project. However, there are a few reasons you might want to run your own:
+---
 
-- The canonical instance runs under the Cloudflare free tier, so it can "only" handle around [100,000 requests per day](https://developers.cloudflare.com/workers/platform/limits#worker-limits).
-- The proxy sees your endpoint URL, bucket name, and access key, so malicious instances could read or modify your LFS content.
-- To stop using the canonical instance, every commit in your repo must be rewritten to update its LFS server URL, or LFS objects referenced in old commits become inaccessible.
-  - If you deploy your own instance, you could instead update it to redirect to a new LFS server.
-  - If your instance uses your own domain name, you could point it at a self-hosted LFS server in this scenario.
+### 🧪 Running Locally
 
-The proxy is stateless, so you can switch instances just by changing your LFS server URL. If the underlying bucket remains the same, the old URL will continue to work.
+```bash
+deno task start
+```
 
-To host your own instance of the proxy:
+Then send requests like:
 
-- [Fork](https://github.com/milkey-mouse/git-lfs-s3-proxy/fork) this repo (`milkey-mouse/git-lfs-s3-proxy`) to your account.
-- Follow the [Cloudflare Pages Get Started guide](https://developers.cloudflare.com/pages/get-started/guide/):
-  - [Sign up for Cloudflare](https://dash.cloudflare.com/sign-up/workers-and-pages) if you haven't already.
-  - [Create a new Pages site](https://dash.cloudflare.com/?to=/:account/pages/new/provider/github)
-    - Add your GitHub account to Pages.
-    - Grant access to your fork of `milkey-mouse/git-lfs-s3-proxy`.
-    - Set up your Pages site: set **Build command** to `npm install` and leave all other settings on their defaults.
-- If you own a domain name (e.g. `example.com`), you can [add a CNAME record](https://developers.cloudflare.com/pages/platform/custom-domains/#add-a-custom-cname-record) to point a subdomain (e.g. `git-lfs-s3-proxy.example.com`) at your instance. If you don't own a domain, a `pages.dev` subdomain will work just as well, except you'll have to change your LFS server URL if you ever stop using the proxy.
+```bash
+curl -X POST http://localhost/git-lfs-bucket.us-east-1.linodeobjects.com/info/lfs/objects/batch \
+  -u "$ACCESS_KEY:$SECRET_KEY" \
+  -H "Content-Type: application/vnd.git-lfs+json" \
+  -d '{
+    "operation": "upload",
+    "objects": [
+      { "oid": "abc123", "size": 1024 }
+    ]
+  }'
+```
 
-### Find your LFS server URL
+---
 
-We now have everything we need to build the server URL for Git LFS. The format for the URL is
+## 🔐 Authentication
 
-    https://<ACCESS_KEY_ID>:<SECRET_ACCESS_KEY>@<INSTANCE>/<ENDPOINT>/<BUCKET>
+This proxy uses `Basic` auth to receive your S3 credentials:
 
-where `<ACCESS_KEY_ID>` and `<SECRET_ACCESS_KEY>` are the first and second values from [Create an access key](#create-an-access-key), `<ENDPOINT>` is the S3-compatible API endpoint for your object store, and `<BUCKET>` is the name of the bucket from [Create a bucket](#create-a-bucket). For example, the LFS server URL for a Cloudflare R2 bucket `my-site` with access key ID `ed41437d53a69dfc` and secret access key `dc49cbe38583b850a7454c89d74fcd51` created by a Cloudflare user with [account ID](https://developers.cloudflare.com/fundamentals/get-started/basic-tasks/find-account-and-zone-ids/) `7795d95f5507a0c89bd1ed3de8b57061` using the canonical proxy instance `git-lfs-s3-proxy.pages.dev` would be
+```
+Authorization: Basic <base64(accessKeyId:secretAccessKey)>
+```
 
-    https://ed41437d53a69dfc:dc49cbe38583b850a7454c89d74fcd51@git-lfs-s3-proxy.pages.dev/7795d95f5507a0c89bd1ed3de8b57061.r2.cloudflarestorage.com/my-site
+These are used only for signing pre-signed URLs — no credentials are stored.
 
-### Fetch existing LFS objects
+---
 
-If you were already using Git LFS, ensure you have a local copy of any existing LFS objects before you change servers:
+## 🧪 Testing
 
-    git lfs fetch --all
+### 🧪 Unit Tests
 
-### Configure Git to use your LFS server
+Run all logic-level tests (no S3 access required):
 
-Git can be told about the new LFS server in two ways, with slightly different tradeoffs.
+```bash
+deno test test/lfs_proxy_unit_test.ts
+```
 
-#### Public repo
+### 🌐 Integration Tests (S3)
 
-If only certain people with copies of your repo are allowed to write to it, you should [create another access key](#create-an-access-key) with only read permission for your bucket. Then, [create another server URL](#find-your-lfs-server-url) using the read-only access key. Finally, add the server URL containing the **read-only access key** to an `.lfsconfig` file in the root of your repository:
+Set the following environment variables:
 
-    cd "$(git rev-parse --show-toplevel)"  # move to root of repository
-    git config -f .lfsconfig lfs.url 'https://<RO_ACCESS_KEY_ID>:<RO_SECRET_ACCESS_KEY>@<INSTANCE>/<ENDPOINT>/<BUCKET>'
-    git add .lfsconfig
-    git commit -m "Add .lfsconfig"
+```bash
+export RUN_S3_TESTS=true
+export S3_KEY=your_access_key
+export S3_SECRET=your_secret_key
+export S3_BUCKET=your-test-bucket
+export S3_ENDPOINT=us-east-1.linodeobjects.com
+```
 
-To allow a clone of this repo to write to Git LFS, add the server URL containing the **read/write access key** to its `.git/config`:
+Then run:
 
-    git config lfs.url 'https://<RW_ACCESS_KEY_ID>:<RW_SECRET_ACCESS_KEY>@<INSTANCE>/<ENDPOINT>/<BUCKET>'
+```bash
+deno test --allow-net --allow-env test/lfs_proxy_integration_test.ts
+```
 
-This config file is not checked into the repository, so the read/write access key remains private.
+---
 
-#### Private repo
+## 🛠 Configuration
 
-If you're working with a private repository where everyone with a clone of the repo **already has read/write access**, you may want to skip generating another access key and manually adding the read/write key to each clone that needs it. (Even in this case, the [public repo approach](#public-repo) is marginally more secure, but the tradeoff may be worth it for convenience's sake.) To set the LFS server URL for everyone at once, granting anyone with a copy of the repo read/write access to the LFS server, put the LFS server URL containing the read/write access key in `.lfsconfig`:
+| Component | How it's configured |
+|----------|---------------------|
+| Bucket    | From the path segment in the LFS request |
+| Endpoint  | From the path (e.g., `us-east-1.linodeobjects.com`) |
+| Credentials | From Basic Auth |
+| Expiry    | Hardcoded to 3600s (configurable in `handler.ts`) |
 
-    cd "$(git rev-parse --show-toplevel)"  # move to root of repository
-    git config -f .lfsconfig lfs.url 'https://<RW_ACCESS_KEY_ID>:<RW_SECRET_ACCESS_KEY>@<INSTANCE>/<ENDPOINT>/<BUCKET>'
-    git add .lfsconfig
-    git commit -m "Add .lfsconfig"
+---
 
-### Upload existing LFS objects
+## 🐳 Docker
 
-If you were already using Git LFS, ensure any existing LFS objects are uploaded to the new server:
+```Dockerfile
+FROM denoland/deno:alpine-2.2.1
 
-    git lfs push --all origin
+WORKDIR /app
+COPY . .
 
-### GitLab only: Disable built-in LFS
+RUN deno cache main.ts
 
-GitLab "helpfully" rejects commits containing "missing" LFS objects. After configuring a non-GitLab LFS server, GitLab will consider all new LFS objects "missing" and reject new commits:
+EXPOSE 3000
+CMD ["run", "--allow-net", "main.ts"]
+```
 
-    remote: GitLab: LFS objects are missing. Ensure LFS is properly set up or try a manual "git lfs push --all".
-    To gitlab.com:milkey-mouse/lfs-test
-     ! [remote rejected] main -> main (pre-receive hook declined)
-    error: failed to push some refs to 'gitlab.com:milkey-mouse/lfs-test'
+Build & run:
 
-To disable this "feature", disable LFS on the GitLab repository. This can be done via the repository's GitLab page with **Settings** > **General** > **Visibility, project features, permissions** (click **Expand**) > **Repository** > **Git Large File Storage (LFS)** (disable, then click **Save changes**), or via the API:
+```bash
+docker build -t lfs-proxy .
+docker run -p 3000:3000 lfs-proxy
+```
 
-    curl --request PUT --header "PRIVATE-TOKEN: <your-token>" \
-     --url "https://gitlab.com/api/v4/projects/<your-project-ID>" \
-     --data "lfs_enabled=false"
+---
 
-### Using Git LFS
+## 🤖 GitHub Actions CI
 
-After [configuring your LFS server](#configure-git-to-use-your-lfs-server), you can set up and use Git LFS as usual.
+✅ Unit tests run on every PR  
+✅ Integration tests run only if S3 credentials are set as secrets
 
-#### Install Git LFS
+See: `.github/workflows/test.yml`
 
-If you haven't used Git LFS before, you may need to install it. Run the following command:
+---
 
-    git lfs version
+## 🙋 FAQ
 
-If your output includes `git: 'lfs' is not a git command`, then follow the Git LFS [installation instructions](https://github.com/git-lfs/git-lfs#installing).
+**Q: Can I use this with AWS S3?**  
+A: Yes. Just set the endpoint to `s3.amazonaws.com`.
 
-#### Install smudge and clean filters
+**Q: Does it support Cloudflare R2?**  
+A: Yes, as long as you provide the correct R2 S3-compatible endpoint.
 
-Even if the Git LFS binary was already installed, the smudge and clean filters Git LFS relies upon may not be. Ensure they are installed for your user account:
+**Q: Can I self-host with MinIO?**  
+A: Yes. Set `S3_ENDPOINT` and use path-style mode.
 
-    git lfs install
+---
 
-#### Start using LFS
+## 🧠 Credits
 
-You're now ready to [start using Git LFS](https://github.com/git-lfs/git-lfs#example-usage). For example:
+Originally inspired by [milkey-mouse/git-lfs-s3-proxy](https://github.com/milkey-mouse/git-lfs-s3-proxy), rewritten in Deno with testing, structured logging, and S3 flexibility.
 
-- To add any `.iso` files added in future commits to Git LFS, use [`git lfs track`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-track.adoc):
+---
 
-      git lfs track '*.iso'
-      git add .gitattributes
-      git commit -m "Add .iso files to Git LFS"
+## 📄 License
 
-- To add all existing `.iso` files to Git LFS (which [rewrites history](https://stackoverflow.com/q/1491001), so be careful), use [`git lfs migrate`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-migrate.adoc):
-
-      git fetch --all
-      git lfs migrate import --everything --include='*.iso'
-      git push --all --force-with-lease
-
-- To add all existing files above 25 MiB to Git LFS (which [rewrites history](https://stackoverflow.com/q/1491001), so be careful), use [`git lfs migrate`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-migrate.adoc):
-
-      git fetch --all
-      git lfs migrate import --everything --above=25MiB
-      git push --all --force-with-lease
+MIT
