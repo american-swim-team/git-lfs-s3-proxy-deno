@@ -1,14 +1,16 @@
-FROM denoland/deno:alpine-1.41.1 as builder
-
-WORKDIR /app
-COPY src/ .
-RUN deno cache main.ts
-
 FROM denoland/deno:alpine-1.41.1
-WORKDIR /app
-COPY --from=builder /deno-dir /deno-dir
-COPY src/ .
 
-ENV DENO_DIR=/deno-dir
-CMD ["run", "--allow-net", "main.ts"]
+WORKDIR /app
+
+# Copy everything we need: config and source files
+COPY deno.json ./
+COPY src/ ./src
+
+# Cache deps for faster startup (optional)
+RUN deno cache src/main.ts
+
+EXPOSE 3000
+
+# Use deno.json for imports, permissions kept tight
+CMD ["task", "start"]
 
