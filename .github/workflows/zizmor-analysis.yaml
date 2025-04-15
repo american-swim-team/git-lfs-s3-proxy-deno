@@ -1,0 +1,19 @@
+name: 🚨 Run Zizmor Analysis from Shared Workflow
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [ opened, synchronize ]
+  schedule:
+    - cron: 0 0 * * *
+
+jobs:
+  run-zizmor-analysis:
+    uses: american-swim-team/project-tracker/.github/workflows/zizmor-analysis.yml@main
+    permissions:
+      contents: read
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ZIZMOR_ISSUE_TOKEN: ${{ secrets.ZIZMOR_ISSUE_TOKEN }}
+
