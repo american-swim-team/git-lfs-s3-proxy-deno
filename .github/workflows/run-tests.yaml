@@ -1,4 +1,4 @@
-name: LFS Proxy Test Suite
+name: ✅ LFS Proxy Test Suite
 
 on:
   push:
