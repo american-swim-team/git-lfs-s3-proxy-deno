@@ -1,0 +1,17 @@
+# Deno stuff
+deno.lock
+.deno/
+.cache/
+
+# Env + secrets
+.env
+
+# Editor/OS files
+.vscode/
+.idea/
+*.log
+.DS_Store
+
+# Test artifacts
+coverage/
+

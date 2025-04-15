@@ -2,9 +2,13 @@ name: 🚨 Run Zizmor Analysis from Shared Workflow
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
   pull_request:
-    types: [ opened, synchronize ]
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/**"
   schedule:
     - cron: 0 0 * * *
 
@@ -16,4 +20,3 @@ jobs:
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ZIZMOR_ISSUE_TOKEN: ${{ secrets.ZIZMOR_ISSUE_TOKEN }}
-

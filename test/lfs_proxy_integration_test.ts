@@ -1,5 +1,5 @@
 // test/lfs_proxy_integration_test.ts
-
+// TODO add dotenv
 import { handler } from "../src/handler.ts";
 import { assertEquals, assertExists } from "@std/assert";
 
@@ -41,10 +41,18 @@ Deno.test({
     assertExists(url);
 
     // Step 2: Upload content to the presigned URL
+
     const upload = await fetch(url, {
       method: "PUT",
       body: new TextEncoder().encode("Hello from Deno!"),
     });
+
+    if (!upload.ok) {
+      await upload.body?.cancel();
+      throw new Error(`Upload failed with status ${upload.status}`);
+    } else {
+      await upload.body?.cancel(); // clean up to avoid test leak
+    }
 
     if (![200, 201, 204].includes(upload.status)) {
       throw new Error(`Upload failed with status ${upload.status}`);
@@ -75,8 +83,18 @@ Deno.test({
     assertExists(downloadUrl);
 
     const fileRes = await fetch(downloadUrl);
-    const content = await fileRes.text();
 
+    let content: string;
+
+    try {
+      content = await fileRes.text(); // Always read the body
+    } catch (err) {
+      // If read fails, still clean up
+      await fileRes.body?.cancel();
+      throw new Error(`Failed to read downloaded file: ${err}`);
+    }
+
+    // Now assert
     assertEquals(content, "Hello from Deno!");
   },
 });
