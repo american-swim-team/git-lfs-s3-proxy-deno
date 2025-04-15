@@ -33,8 +33,7 @@ jobs:
         run: deno fmt --check
 
       - name: 🔍 Type check
-        run: deno check main.ts handler.ts logger.ts
+        run: deno check --config=deno.json $(find src -type f -name "*.ts")
 
       - name: 🧪 Run all tests
         run: deno test --allow-net --allow-env
-

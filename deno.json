@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "lib": ["deno.ns", "dom"],
+    "lib": [
+      "deno.ns",
+      "dom"
+    ],
     "strict": true
   },
   "imports": {
@@ -11,8 +14,16 @@
   "tasks": {
     "start": "deno run --allow-net src/main.ts",
     "test": "deno test --allow-net --allow-env --allow-read"
+  },
+  "fmt": {
+    "include": [
+      "src/",
+      "test/",
+      "deno.json"
+    ],
+    "exclude": [
+      ".github/",
+      "README.md"
+    ]
   }
 }
-
-
-
