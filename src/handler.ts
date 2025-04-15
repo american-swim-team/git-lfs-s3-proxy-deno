@@ -69,7 +69,7 @@ export async function handler(req: Request): Promise<Response> {
           key: oid,
           accessKeyId,
           secretAccessKey,
-          endpoint: `https://${endpoint}`,
+          endpoint: `${endpoint}`,
           expiresIn: EXPIRY,
         });
 
