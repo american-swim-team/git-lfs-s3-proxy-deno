@@ -24,7 +24,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: rom3dius/my-deno-app
+          images: rom3dius/git-lfs-s3-deno
           tags: |
             type=semver,pattern={{version}}
 
