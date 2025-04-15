@@ -1,17 +1,14 @@
-FROM denoland/deno:alpine-1.41.1
+FROM denoland/deno:alpine-1.41.1 as builder
 
 WORKDIR /app
-
-# Copy your app code
-COPY main.ts .
-COPY deps.ts .
-COPY deno.json .
-
-# Compile (optional but makes startup fast)
+COPY src/ .
 RUN deno cache main.ts
 
-EXPOSE 3000
+FROM denoland/deno:alpine-1.41.1
+WORKDIR /app
+COPY --from=builder /deno-dir /deno-dir
+COPY src/ .
 
-# Run with no file system access, only network
+ENV DENO_DIR=/deno-dir
 CMD ["run", "--allow-net", "main.ts"]
 

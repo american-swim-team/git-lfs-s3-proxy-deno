@@ -2,39 +2,46 @@ name: 🐋 Docker
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build:
-    name: Build Docker Image
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
     permissions:
-        contents: read
+      contents: read
+
     steps:
-      - name: Checkout Code
+      - name: 🧾 Checkout Code
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Set up Docker Buildx
+      - name: 🛠️ Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta
+      - name: 🧠 Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: |
-            rom3dius/git-lfs-s3
+          images: rom3dius/my-deno-app
           tags: |
             type=semver,pattern={{version}}
 
-      - name: Login to Docker Hub
+      - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build the Image
-        run: |
-          docker buildx bake -f docker/bake.hcl -f ${{ steps.meta.outputs.bake-file }} --push
-          echo "Build completed successfully"
+      - name: 🏗️ Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: ✅ Done
+        run: echo "Docker image built and pushed successfully!"
