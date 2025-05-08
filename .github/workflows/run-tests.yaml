@@ -21,12 +21,12 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
 
       - name: 🦕 Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@909cc5acb0fdd60627fb858598759246509fa755
         with:
           deno-version: v2.x
 
