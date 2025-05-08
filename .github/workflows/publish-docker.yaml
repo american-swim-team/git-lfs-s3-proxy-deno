@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: 🛠️ Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
 
       - name: 🧠 Extract Docker metadata
         id: meta
